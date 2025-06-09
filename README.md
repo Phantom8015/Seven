@@ -1,12 +1,11 @@
 # Seven
 
-A modern code editor built with Electron, featuring script execution capabilities and a beautiful interface.
+A modern executor built with Electron. 
 
 ## Features
 
 - **Monaco Editor**: Full-featured code editor with syntax highlighting
-- **Tabbed Interface**: Multiple files/scripts support with tab management
-- **Script Execution**: Execute scripts directly from the editor
+- **Tabbed Interface**: Multiple files/scripts support with tabs
 - **File Operations**: Open, save, and create files
 - **Modern UI**: Beautiful, responsive interface with animations
 - **Sound Effects**: Optional UI and typing sounds
