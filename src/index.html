@@ -1,0 +1,1914 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Seven</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+      * {
+        user-select: none;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .font-mono {
+        font-family: "JetBrains Mono", monospace;
+      }
+      #editor-container,
+      #settings-container,
+      #credits-container,
+      #scripthub-container {
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .fade-in-up {
+        animation: fadeIn 0.3s ease-out forwards;
+      }
+      .tab-enter {
+        animation: fadeIn 0.2s ease-out forwards;
+      }
+
+      @keyframes fadeOut {
+        from {
+          opacity: 1;
+          transform: scale(1);
+        }
+        to {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+      }
+      .tab-exit {
+        animation: fadeOut 0.15s ease-in-out forwards;
+      }
+
+      .toast-success {
+        background-color: rgba(34, 197, 94, 0.9);
+      }
+      .toast-error {
+        background-color: rgba(220, 38, 38, 0.9);
+      }
+      .toast-warning {
+        background-color: rgba(217, 119, 6, 0.9);
+      }
+      .toast-info {
+        background-color: rgba(37, 99, 235, 0.9);
+      }
+
+      .search-loading::after {
+        content: "";
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid #ffffff33;
+        border-top: 2px solid #ffffff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 8px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes smooth-blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0;
+        }
+      }
+      .monaco-editor .cursors-layer > .cursor {
+        animation: smooth-blink 1.2s infinite;
+        transition:
+          left 0.075s ease-out,
+          top 0.075s ease-out;
+      }
+
+      .monaco-editor .view-overlays .current-line,
+      .monaco-editor .view-overlays .selection-layer {
+        transition: all 0.1s ease-out;
+      }
+
+      .toggle-checkbox:checked + .toggle-label {
+        background-color: #3b82f6;
+      }
+
+      .toggle-checkbox:checked + .toggle-label .toggle-dot {
+        transform: translateX(100%);
+      }
+
+      .results-scroller::-webkit-scrollbar {
+        width: 8px;
+      }
+      .results-scroller::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+      }
+      .results-scroller::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+      }
+      .results-scroller::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      #scripthub-section {
+        max-height: 100vh;
+        overflow: hidden;
+      }
+
+      #scripts-results-container {
+        min-height: 0;
+      }
+
+      .tabs-scroller {
+        overflow: hidden;
+
+        overflow-x: auto;
+
+        overflow-y: hidden;
+
+        scroll-behavior: smooth;
+
+        scrollbar-width: none;
+      }
+
+      .traffic-lights {
+        -webkit-app-region: no-drag;
+      }
+
+      .traffic-light {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+      }
+
+      .traffic-light:hover {
+        transform: scale(1.1);
+      }
+
+      .traffic-light.close {
+        background-color: #ff5f57;
+      }
+
+      .traffic-light.minimize {
+        background-color: #ffbd2e;
+      }
+
+      .traffic-light.maximize {
+        background-color: #28ca42;
+      }
+
+      .traffic-light:hover::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: rgba(0, 0, 0, 0.6);
+        font-size: 8px;
+        font-weight: bold;
+      }
+
+      .traffic-light.close:hover::after {
+        content: "×";
+      }
+
+      .traffic-light.minimize:hover::after {
+        content: "−";
+      }
+
+      .traffic-light.maximize:hover::after {
+        content: "+";
+      }
+
+      header {
+        -webkit-app-region: drag;
+      }
+
+      header > * {
+        -webkit-app-region: no-drag;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen" style="background: transparent">
+    <div class="w-full min-h-screen bg-transparent flex flex-col text-gray-300">
+      <header
+        class="flex-shrink-0 h-12 border-b border-white/20 flex items-center justify-between px-4"
+      >
+        <div class="flex items-center gap-2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="lucide lucide-terminal h-6 w-6 text-blue-400"
+          >
+            <polyline points="4 17 10 11 4 5" />
+            <line x1="12" y1="19" x2="20" y2="19" />
+          </svg>
+          <h1 class="font-semibold text-sm text-gray-200">Seven</h1>
+          <span
+            class="bg-gradient-to-r from-blue-600/90 to-blue-500/90 text-white text-xs font-bold px-2 py-0.5 rounded-md"
+            >v2</span
+          >
+        </div>
+        <div class="traffic-lights flex items-center gap-2">
+          <div class="traffic-light close" id="close-btn" title="Close"></div>
+          <div
+            class="traffic-light minimize"
+            id="minimize-btn"
+            title="Minimize"
+          ></div>
+          <div
+            class="traffic-light maximize"
+            id="maximize-btn"
+            title="Maximize"
+          ></div>
+        </div>
+      </header>
+
+      <div class="flex-grow flex min-h-0">
+        <aside
+          id="icon-bar"
+          class="w-16 flex-shrink-0 bg-transparent flex flex-col items-center justify-center gap-6 border-r border-white/20"
+        >
+          <div
+            id="code-view-btn"
+            data-view="editor"
+            class="view-btn w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200 bg-blue-600 shadow-lg shadow-blue-600/20"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-code-2 text-white"
+            >
+              <path d="m18 16 4-4-4-4" />
+              <path d="m6 8-4 4 4 4" />
+              <path d="m14.5 4-5 16" />
+            </svg>
+          </div>
+          <div
+            id="scripthub-view-btn"
+            data-view="scripthub"
+            class="view-btn w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200 bg-gradient-to-b from-white/10 to-transparent border border-white/20 hover:bg-white/10 active:scale-95 shadow-md shadow-black/40"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-library text-white"
+            >
+              <path d="m16 6 4 14" />
+              <path d="M12 6v14" />
+              <path d="M8 8v12" />
+              <path d="M4 4v16" />
+            </svg>
+          </div>
+          <div
+            id="settings-view-btn"
+            data-view="settings"
+            class="view-btn w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200 bg-gradient-to-b from-white/10 to-transparent border border-white/20 hover:bg-white/10 active:scale-95 shadow-md shadow-black/40"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-settings-2 text-white"
+            >
+              <path d="M20 7h-9" />
+              <path d="M4 17h9" />
+              <circle cx="17" cy="17" r="3" />
+              <circle cx="7" cy="7" r="3" />
+            </svg>
+          </div>
+          <div
+            id="credits-view-btn"
+            data-view="credits"
+            class="view-btn w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200 bg-gradient-to-b from-white/10 to-transparent border border-white/20 hover:bg-white/10 active:scale-95 shadow-md shadow-black/40"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-award text-white"
+            >
+              <circle cx="12" cy="8" r="6" />
+              <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+            </svg>
+          </div>
+        </aside>
+
+        <main
+          id="editor-section"
+          class="flex-1 flex flex-col min-w-0 pb-2 px-2"
+        >
+          <div class="flex-shrink-0 flex items-center pt-2 mb-2">
+            <div class="flex-1 min-w-0 tabs-scroller">
+              <div id="tabs-container" class="flex items-end gap-1 w-max"></div>
+            </div>
+            <button
+              id="add-tab-btn"
+              class="ml-2 mb-1 p-1 rounded-md hover:bg-white/10 transition-transform duration-200 hover:scale-110 flex-shrink-0"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-plus"
+              >
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            </button>
+          </div>
+          <div
+            id="editor-wrapper"
+            class="flex-1 flex overflow-hidden bg-transparent rounded-lg transition-opacity duration-300"
+          >
+            <div id="editor-container"></div>
+          </div>
+          <div
+            class="flex-shrink-0 flex items-center justify-center gap-2 py-2"
+          >
+            <button
+              id="execute-btn"
+              class="action-btn flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-gradient-to-b from-white/10 to-transparent border border-white/20 hover:bg-white/10 active:scale-95 transition-all duration-200 shadow-md shadow-black/40"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-play-circle"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polygon points="10 8 16 12 10 16 10 8" />
+              </svg>
+              Execute
+            </button>
+            <button
+              id="open-file-btn"
+              class="action-btn flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-gradient-to-b from-white/10 to-transparent border border-white/20 hover:bg-white/10 active:scale-95 transition-all duration-200 shadow-md shadow-black/40"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-folder-open"
+              >
+                <path
+                  d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"
+                />
+              </svg>
+              Open File
+            </button>
+            <button
+              id="save-file-btn"
+              class="action-btn flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-gradient-to-b from-white/10 to-transparent border border-white/20 hover:bg-white/10 active:scale-95 transition-all duration-200 shadow-md shadow-black/40"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-save"
+              >
+                <path
+                  d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+              Save File
+            </button>
+            <button
+              id="clear-btn"
+              class="action-btn flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-gradient-to-b from-white/10 to-transparent border border-white/20 hover:bg-white/10 active:scale-95 transition-all duration-200 shadow-md shadow-black/40"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-trash-2"
+              >
+                <path d="M3 6h18" />
+                <path
+                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+              Clear
+            </button>
+          </div>
+        </main>
+
+        <main
+          id="scripthub-section"
+          class="flex-1 flex flex-col min-w-0 min-h-0 hidden"
+        >
+          <div class="flex-shrink-0 text-center p-4 pb-2">
+            <h2 class="text-xl font-semibold text-white">Script Hub</h2>
+            <p class="text-sm text-gray-400 mt-1">
+              Powered by ScriptBlox API - Search and discover scripts for your
+              favorite games
+            </p>
+          </div>
+          <div class="flex-shrink-0 flex gap-2 px-4 pb-4">
+            <input
+              type="text"
+              id="script-search-input"
+              placeholder="Search for scripts..."
+              class="flex-grow bg-white/5 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            />
+            <button
+              id="script-search-button"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors flex items-center justify-center disabled:bg-blue-800 disabled:cursor-not-allowed"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-search"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto min-h-0 px-4 pb-4">
+            <div class="results-scroller h-full overflow-y-auto pr-2">
+              <div
+                id="scripts-results-container"
+                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+              ></div>
+
+              <div
+                id="search-loading"
+                class="text-white text-center w-full hidden"
+              >
+                <div class="search-loading">Searching ScriptBlox</div>
+              </div>
+              <div
+                id="search-no-results"
+                class="text-gray-400 text-center w-full hidden"
+              >
+                <span id="search-query-text"></span>
+              </div>
+              <div
+                id="search-error"
+                class="text-red-400 text-center w-full hidden"
+              >
+                <span id="search-error-text"></span>
+              </div>
+            </div>
+          </div>
+          <div
+            id="copy-feedback"
+            class="fixed bottom-5 right-5 bg-blue-500/80 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-lg shadow-lg transition-opacity duration-300 opacity-0"
+          >
+            Copied to clipboard!
+          </div>
+        </main>
+
+        <main
+          id="settings-section"
+          class="flex-1 flex flex-col min-w-0 pb-2 px-2 hidden"
+        >
+          <div class="flex-shrink-0 flex items-center pt-2 mb-2">
+            <h2 class="text-lg font-semibold text-white">Settings</h2>
+          </div>
+          <div
+            id="settings-wrapper"
+            class="flex-1 flex flex-col overflow-hidden bg-transparent rounded-lg p-6"
+          >
+            <div class="space-y-6">
+              <h3 class="text-xl font-bold text-white mb-4">Editor</h3>
+              <div class="flex items-center justify-between">
+                <span class="text-gray-300">Minimap</span
+                ><label for="minimap-toggle" class="cursor-pointer"
+                  ><input
+                    type="checkbox"
+                    id="minimap-toggle"
+                    class="hidden toggle-checkbox" />
+                  <div
+                    class="toggle-label w-12 h-6 bg-white/20 rounded-full shadow-inner transition-colors duration-200 ease-in-out flex items-center"
+                  >
+                    <div
+                      class="toggle-dot w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out"
+                    ></div></div
+                ></label>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-gray-300">Line Numbers</span
+                ><label for="linenumbers-toggle" class="cursor-pointer"
+                  ><input
+                    type="checkbox"
+                    id="linenumbers-toggle"
+                    class="hidden toggle-checkbox"
+                    checked />
+                  <div
+                    class="toggle-label w-12 h-6 bg-white/20 rounded-full shadow-inner transition-colors duration-200 ease-in-out flex items-center"
+                  >
+                    <div
+                      class="toggle-dot w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out"
+                    ></div></div
+                ></label>
+              </div>
+              <div class="border-t border-white/10 my-6"></div>
+              <h3 class="text-xl font-bold text-white mb-4">Interface</h3>
+              <div class="flex items-center justify-between">
+                <span class="text-gray-300">Vibrancy</span
+                ><label for="vibrancy-toggle" class="cursor-pointer"
+                  ><input
+                    type="checkbox"
+                    id="vibrancy-toggle"
+                    class="hidden toggle-checkbox"
+                    checked />
+                  <div
+                    class="toggle-label w-12 h-6 bg-white/20 rounded-full shadow-inner transition-colors duration-200 ease-in-out flex items-center"
+                  >
+                    <div
+                      class="toggle-dot w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out"
+                    ></div></div
+                ></label>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-gray-300">UI Sounds</span
+                ><label for="uisounds-toggle" class="cursor-pointer"
+                  ><input
+                    type="checkbox"
+                    id="uisounds-toggle"
+                    class="hidden toggle-checkbox" />
+                  <div
+                    class="toggle-label w-12 h-6 bg-white/20 rounded-full shadow-inner transition-colors duration-200 ease-in-out flex items-center"
+                  >
+                    <div
+                      class="toggle-dot w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out"
+                    ></div></div
+                ></label>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-gray-300">Typing Sounds</span
+                ><label for="typingsounds-toggle" class="cursor-pointer"
+                  ><input
+                    type="checkbox"
+                    id="typingsounds-toggle"
+                    class="hidden toggle-checkbox" />
+                  <div
+                    class="toggle-label w-12 h-6 bg-white/20 rounded-full shadow-inner transition-colors duration-200 ease-in-out flex items-center"
+                  >
+                    <div
+                      class="toggle-dot w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out"
+                    ></div></div
+                ></label>
+              </div>
+
+              <div class="border-t border-white/10 my-6"></div>
+
+              <h3 class="text-xl font-bold text-white mb-4">
+                Keyboard Shortcuts
+              </h3>
+              <button
+                id="show-shortcuts-btn"
+                class="w-full bg-blue-600/20 hover:bg-blue-600/30 border border-blue-400/30 text-blue-300 font-medium px-4 py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="lucide lucide-keyboard"
+                >
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path
+                    d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M7 16h10"
+                  />
+                </svg>
+                Show All Shortcuts
+              </button>
+            </div>
+          </div>
+        </main>
+
+        <main
+          id="credits-section"
+          class="flex-1 flex flex-col min-w-0 pb-2 px-2 hidden"
+        >
+          <div class="flex-shrink-0 flex items-center pt-2 mb-2">
+            <h2 class="text-lg font-semibold text-white">Credits</h2>
+          </div>
+          <div
+            id="credits-wrapper"
+            class="flex-1 flex flex-col items-center justify-center overflow-hidden bg-transparent rounded-lg p-6 text-center"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-award mx-auto mb-4 text-blue-400"
+            >
+              <circle cx="12" cy="8" r="6" />
+              <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+            </svg>
+            <h3 class="text-2xl font-bold text-white mb-2">7Sleeps</h3>
+            <p class="text-gray-400">Frontend</p>
+            <h3 class="text-2xl font-bold text-white mb-2 mt-6">phantom8015</h3>
+            <p class="text-gray-400">Backend</p>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <div
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden"
+      id="shortcuts-modal"
+    >
+      <div
+        class="bg-gray-900/95 border border-white/20 rounded-lg max-w-md w-full max-h-[80vh] overflow-auto"
+      >
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-bold text-white">Keyboard Shortcuts</h3>
+            <button
+              class="text-gray-400 hover:text-white transition-colors"
+              id="close-shortcuts-modal"
+            >
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                ></path>
+              </svg>
+            </button>
+          </div>
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-white/10">
+                <th class="text-left px-3 py-2 text-gray-400 font-medium">
+                  Shortcut
+                </th>
+                <th class="text-left px-3 py-2 text-gray-400 font-medium">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/10" id="shortcuts-list"></tbody>
+          </table>
+          <div class="mt-4 text-xs text-gray-500 text-center">
+            Press Alt + F4 to close this dialog
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="toast-container"
+      class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"
+    ></div>
+
+    <template id="toast-template">
+      <div
+        class="px-4 py-3 rounded-lg shadow-lg text-white font-medium transition-all duration-300 transform translate-x-full opacity-0 backdrop-blur-md border border-white/20 pointer-events-auto max-w-sm"
+      >
+        <div class="flex items-start">
+          <span class="toast-icon w-5 h-5 mr-2 flex-shrink-0"></span>
+          <span class="toast-message text-sm leading-5"></span>
+          <button
+            class="toast-close ml-3 flex-shrink-0 text-white/70 hover:text-white transition-colors"
+          >
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fill-rule="evenodd"
+                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const vibrant = () => {
+          if (window.electronAPI) {
+            window.electronAPI.setVibrancy(true);
+          }
+        };
+        vibrant();
+
+        const editorSection = document.getElementById("editor-section");
+        const settingsSection = document.getElementById("settings-section");
+        const creditsSection = document.getElementById("credits-section");
+        const scriptHubSection = document.getElementById("scripthub-section");
+        const settingsWrapper = document.getElementById("settings-wrapper");
+        const iconBar = document.getElementById("icon-bar");
+        const viewBtns = document.querySelectorAll(".view-btn");
+        const tabsContainer = document.getElementById("tabs-container");
+        const addTabBtn = document.getElementById("add-tab-btn");
+        const clearBtn = document.getElementById("clear-btn");
+        const editorContainer = document.getElementById("editor-container");
+        let hoverSynth, clickSynth, typingSynth;
+        let uiSoundsEnabled = false,
+          editorTypingSoundsEnabled = false;
+        let editor;
+        let tabs = [];
+        let activeTabId = null;
+        let activeView = "editor";
+        let isScriptSearchLoading = false;
+        let currentFilePath = null;
+        let searchTimeout;
+        let scriptSearchInput,
+          scriptSearchButton,
+          scriptsResultsContainer,
+          copyFeedbackEl;
+        scriptSearchInput = document.getElementById("script-search-input");
+        scriptSearchButton = document.getElementById("script-search-button");
+        scriptsResultsContainer = document.getElementById(
+          "scripts-results-container",
+        );
+        copyFeedbackEl = document.getElementById("copy-feedback");
+
+        if (scriptSearchInput && scriptSearchButton) {
+          setupAutoSearch();
+        }
+        const welcomeMessage = "-- Welcome To The New & Improved, Seven! ";
+
+        const SETTINGS_KEY = "sevenInterface_settings";
+        const defaultSettings = {
+          uiSoundsEnabled: false,
+          editorTypingSoundsEnabled: false,
+          vibrancyEnabled: true,
+          minimapEnabled: false,
+          lineNumbersEnabled: true,
+        };
+
+        function loadSettings() {
+          try {
+            const saved = localStorage.getItem(SETTINGS_KEY);
+            return saved
+              ? { ...defaultSettings, ...JSON.parse(saved) }
+              : defaultSettings;
+          } catch (error) {
+            console.warn("Failed to load settings:", error);
+            return defaultSettings;
+          }
+        }
+
+        function saveSettings(settings) {
+          try {
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+
+            console.log("Settings saved:", settings);
+          } catch (error) {
+            console.warn("Failed to save settings:", error);
+            showToast("Failed to save settings", "error");
+          }
+        }
+
+        function getSetting(key) {
+          const settings = loadSettings();
+          return settings[key];
+        }
+
+        function setSetting(key, value) {
+          const settings = loadSettings();
+          settings[key] = value;
+          saveSettings(settings);
+        }
+
+        require.config({
+          paths: {
+            vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs",
+          },
+        });
+        require(["vs/editor/editor.main"], function () {
+          const settings = loadSettings();
+
+          monaco.editor.defineTheme("seven-dark-transparent", {
+            base: "vs-dark",
+            inherit: true,
+            rules: [
+              { token: "comment", foreground: "808080" },
+              { token: "string", foreground: "90EE90" },
+            ],
+            colors: {
+              "editor.background": "#00000000",
+              "editor.selectionBackground": "#3B82F64D",
+              "editor.lineHighlightBackground": "#FFFFFF0D",
+              "minimap.background": "#00000000",
+              "minimapSlider.background": "#ffffff1a",
+              "minimapSlider.hoverBackground": "#ffffff33",
+              "minimapSlider.activeBackground": "#ffffff55",
+              "editorOverviewRuler.background": "#00000000",
+              "editorOverviewRuler.border": "#00000000",
+            },
+          });
+          editor = monaco.editor.create(editorContainer, {
+            value: "",
+            language: "lua",
+            theme: "seven-dark-transparent",
+            minimap: { enabled: settings.minimapEnabled },
+            lineNumbers: settings.lineNumbersEnabled ? "on" : "off",
+            automaticLayout: true,
+            cursorBlinking: "smooth",
+            cursorSmoothCaretAnimation: "on",
+          });
+          editor.onKeyDown(() => playTypingSound());
+          addTab();
+          initializeSettings();
+        });
+
+        function initSoundEffects() {
+          if (typeof Tone === "undefined") {
+            console.warn("Tone.js not found, sounds disabled.");
+            uiSoundsEnabled = editorTypingSoundsEnabled = false;
+            return;
+          }
+          try {
+            hoverSynth = new Tone.Synth({
+              oscillator: { type: "sine" },
+              envelope: {
+                attack: 0.005,
+                decay: 0.05,
+                sustain: 0.01,
+                release: 0.1,
+              },
+              volume: -25,
+            }).toDestination();
+            clickSynth = new Tone.Synth({
+              oscillator: { type: "triangle" },
+              envelope: {
+                attack: 0.005,
+                decay: 0.1,
+                sustain: 0.02,
+                release: 0.15,
+              },
+              volume: -20,
+            }).toDestination();
+            typingSynth = new Tone.MembraneSynth({
+              pitchDecay: 0.008,
+              octaves: 2,
+              oscillator: { type: "sine" },
+              envelope: {
+                attack: 0.001,
+                decay: 0.05,
+                sustain: 0,
+                release: 0.05,
+              },
+              volume: -28,
+            }).toDestination();
+          } catch (e) {
+            console.error("Tone.js init error:", e);
+            uiSoundsEnabled = editorTypingSoundsEnabled = false;
+          }
+        }
+        function startAudioOnFirstInteraction() {
+          if (typeof Tone !== "undefined" && Tone.context.state !== "running") {
+            Tone.start().catch((e) =>
+              console.error("Tone.js failed to start:", e),
+            );
+          }
+          document.body.removeEventListener(
+            "mousedown",
+            startAudioOnFirstInteraction,
+          );
+          document.body.removeEventListener(
+            "keydown",
+            startAudioOnFirstInteraction,
+          );
+        }
+        document.body.addEventListener(
+          "mousedown",
+          startAudioOnFirstInteraction,
+        );
+        document.body.addEventListener("keydown", startAudioOnFirstInteraction);
+        function playHoverSound() {
+          if (uiSoundsEnabled && hoverSynth?.context.state === "running")
+            hoverSynth.triggerAttackRelease("C5", "32n", Tone.now());
+        }
+        function playClickSound() {
+          if (uiSoundsEnabled && clickSynth?.context.state === "running")
+            clickSynth.triggerAttackRelease("G4", "16n", Tone.now());
+        }
+        function playTypingSound() {
+          if (
+            editorTypingSoundsEnabled &&
+            typingSynth?.context.state === "running"
+          )
+            typingSynth.triggerAttackRelease("C6", "64n", Tone.now());
+        }
+        function attachSoundListeners() {
+          document
+            .querySelectorAll(
+              "button, .view-btn, .action-btn, [data-tab-id], .toggle-label",
+            )
+            .forEach((el) => {
+              el.removeEventListener("mouseenter", playHoverSound);
+              el.removeEventListener("mousedown", playClickSound);
+              el.addEventListener("mouseenter", playHoverSound);
+              el.addEventListener("mousedown", playClickSound);
+            });
+        }
+        initSoundEffects();
+
+        function switchView(viewName) {
+          if (activeView === viewName) return;
+          activeView = viewName;
+          updateActiveView();
+
+          if (
+            viewName === "scripthub" &&
+            scriptSearchInput?.value?.trim() === ""
+          ) {
+            loadFeaturedScripts();
+          }
+        }
+        function updateActiveView() {
+          viewBtns.forEach((btn) => {
+            const view = btn.dataset.view;
+            const iconSvg = btn.querySelector("svg");
+            const isActive = view === activeView;
+            btn.classList.toggle("bg-blue-600", isActive);
+            btn.classList.toggle("shadow-lg", isActive);
+            btn.classList.toggle("shadow-blue-600/20", isActive);
+            btn.classList.toggle("bg-gradient-to-b", !isActive);
+            btn.classList.toggle("from-white/10", !isActive);
+            btn.classList.toggle("to-transparent", !isActive);
+            btn.classList.toggle("border", !isActive);
+            btn.classList.toggle("border-white/20", !isActive);
+            if (iconSvg) {
+              iconSvg.classList.toggle("text-white", isActive);
+              iconSvg.classList.toggle("text-white", !isActive);
+            }
+          });
+          editorSection.style.display =
+            activeView === "editor" ? "flex" : "none";
+          settingsSection.style.display =
+            activeView === "settings" ? "flex" : "none";
+          creditsSection.style.display =
+            activeView === "credits" ? "flex" : "none";
+          scriptHubSection.style.display =
+            activeView === "scripthub" ? "flex" : "none";
+        }
+        iconBar.addEventListener("click", (e) => {
+          const viewBtn = e.target.closest(".view-btn");
+          if (viewBtn) switchView(viewBtn.dataset.view);
+        });
+
+        async function searchScripts(query = null) {
+          if (isScriptSearchLoading) return;
+
+          if (!query) {
+            query = scriptSearchInput?.value?.trim() || "";
+          }
+
+          if (!query) {
+            return loadFeaturedScripts();
+          }
+
+          isScriptSearchLoading = true;
+          if (scriptSearchButton) scriptSearchButton.disabled = true;
+
+          hideAllSearchStates();
+          document.getElementById("search-loading").classList.remove("hidden");
+          if (scriptsResultsContainer) scriptsResultsContainer.innerHTML = "";
+
+          try {
+            if (!window.electronAPI) {
+              throw new Error(
+                "ScriptBlox API not available in this environment",
+              );
+            }
+
+            const result = await window.electronAPI.searchScripts(query, 1, 20);
+
+            hideAllSearchStates();
+
+            if (result.success) {
+              const data = result.data;
+              if (data.scripts && data.scripts.length > 0) {
+                renderScripts(data.scripts);
+                showToast(
+                  `Found ${data.scripts.length} scripts for "${query}"`,
+                  "success",
+                );
+              } else {
+                document.getElementById("search-query-text").textContent =
+                  `No scripts found for "${query}".`;
+                document
+                  .getElementById("search-no-results")
+                  .classList.remove("hidden");
+              }
+            } else {
+              throw new Error(result.message || "Unknown error occurred");
+            }
+          } catch (error) {
+            console.error("Failed to fetch scripts:", error);
+            hideAllSearchStates();
+            document.getElementById("search-error-text").textContent =
+              error.message;
+            document.getElementById("search-error").classList.remove("hidden");
+            showToast("Script search failed: " + error.message, "error");
+          } finally {
+            isScriptSearchLoading = false;
+            if (scriptSearchButton) scriptSearchButton.disabled = false;
+          }
+        }
+
+        async function loadFeaturedScripts() {
+          if (isScriptSearchLoading) return;
+
+          isScriptSearchLoading = true;
+          if (scriptSearchButton) scriptSearchButton.disabled = true;
+
+          hideAllSearchStates();
+          document.getElementById("search-loading").classList.remove("hidden");
+          if (scriptsResultsContainer) scriptsResultsContainer.innerHTML = "";
+
+          try {
+            if (!window.electronAPI) {
+              throw new Error(
+                "ScriptBlox API not available in this environment",
+              );
+            }
+
+            const result = await window.electronAPI.fetchFeaturedScripts(20);
+
+            hideAllSearchStates();
+
+            if (result.success) {
+              const data = result.data;
+              if (data.scripts && data.scripts.length > 0) {
+                renderScripts(data.scripts);
+                showToast(
+                  `Loaded ${data.scripts.length} featured scripts`,
+                  "success",
+                );
+              } else {
+                document.getElementById("search-query-text").textContent =
+                  "No featured scripts available.";
+                document
+                  .getElementById("search-no-results")
+                  .classList.remove("hidden");
+              }
+            } else {
+              throw new Error(result.message || "Unknown error occurred");
+            }
+          } catch (error) {
+            console.error("Failed to fetch featured scripts:", error);
+            hideAllSearchStates();
+            document.getElementById("search-error-text").textContent =
+              error.message;
+            document.getElementById("search-error").classList.remove("hidden");
+            showToast(
+              "Failed to load featured scripts: " + error.message,
+              "error",
+            );
+          } finally {
+            isScriptSearchLoading = false;
+            if (scriptSearchButton) scriptSearchButton.disabled = false;
+          }
+        }
+
+        function hideAllSearchStates() {
+          document.getElementById("search-loading").classList.add("hidden");
+          document.getElementById("search-no-results").classList.add("hidden");
+          document.getElementById("search-error").classList.add("hidden");
+        }
+
+        function renderScripts(scripts) {
+          scriptsResultsContainer.innerHTML = "";
+          scripts.forEach((script, index) => {
+            const card = document.createElement("div");
+            card.className =
+              "bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col gap-3 hover:bg-white/10 transition-all duration-200 fade-in-up";
+            card.style.animationDelay = `${index * 50}ms`;
+
+            const gameImage = script.game?.imageUrl || script.image;
+            console.log("Game Image URL:", gameImage);
+            const isVerified = script.verified;
+            const isKey = script.key;
+            const isPaid = script.scriptType === "paid";
+            const isUniversal = script.isUniversal;
+            const isPatched = script.isPatched;
+            let gameName = script.game?.name || "Unknown Game";
+            gameName = gameName.replace(/[^\x20-\x7E]/g, "").trim();
+
+            const createdDate = script.createdAt
+              ? new Date(script.createdAt).toLocaleDateString()
+              : "Unknown";
+
+            card.innerHTML = `
+                        <div class="relative">
+                            <img src="${gameImage}" alt="${script.game?.name || "Unknown Game"}" class="rounded-md h-32 w-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/400x200/1e293b/94a3b8?text=${encodeURIComponent(gameName || "Unknown Game")}';">
+                            ${isPatched ? '<div class="absolute top-2 left-2 bg-red-600/90 text-white text-xs px-2 py-1 rounded-md">PATCHED</div>' : ""}
+                            ${isUniversal ? '<div class="absolute top-2 right-2 bg-purple-600/90 text-white text-xs px-2 py-1 rounded-md">UNIVERSAL</div>' : ""}
+                        </div>
+                        <div class="flex-grow">
+                            <div class="flex items-start justify-between gap-2">
+                                <h4 class="font-bold text-white truncate flex-1" title="${script.title}">${script.title}</h4>
+                                <div class="flex items-center gap-1 flex-shrink-0">
+                                    ${isVerified ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400" title="Verified"><path d="M9 12l2 2 4-4"/><path d="M21 12c.552 0 1-.448 1-1V8a2 2 0 0 0-2-2h-3V4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v3c0 .552.448 1 1 1h3v3a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-3h3z"/></svg>' : ""}
+                                    ${isKey ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-400" title="Key Required"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>' : ""}
+                                    ${isPaid ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-400" title="Paid Script"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>' : ""}
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-400">${script.game?.name || "Unknown Game"}</p>
+                            <p class="text-xs text-gray-500">Created: ${createdDate}</p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-gray-400">
+                            <div class="flex items-center gap-3">
+                                <span class="flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    ${script.views?.toLocaleString() || "0"}
+                                </span>
+                                ${
+                                  script.likeCount !== undefined
+                                    ? `
+                                    <span class="flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-400"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h3.73a2 2 0 0 1 1.92 2.56z"/></svg>
+                                        ${script.likeCount}
+                                    </span>
+                                `
+                                    : ""
+                                }
+                                ${
+                                  script.dislikeCount !== undefined
+                                    ? `
+                                    <span class="flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-400"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h-3.73a2 2 0 0 1-1.92-2.56z"/></svg>
+                                        ${script.dislikeCount}
+                                    </span>
+                                `
+                                    : ""
+                                }
+                            </div>
+                            <div class="flex gap-2">
+                                <button class="copy-script-btn bg-blue-600/50 hover:bg-blue-600 text-white font-semibold p-2 rounded-md transition-colors text-xs" title="Copy script to clipboard">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                </button>
+                                <button class="load-script-btn bg-green-600/50 hover:bg-green-600 text-white font-semibold p-2 rounded-md transition-colors text-xs" title="Load script into editor">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+
+            card
+              .querySelector(".copy-script-btn")
+              .addEventListener("click", () => {
+                copyToClipboard(script.script);
+                showToast("Script copied to clipboard!", "success");
+              });
+
+            card
+              .querySelector(".load-script-btn")
+              .addEventListener("click", () => {
+                if (editor && activeTabId) {
+                  const activeTab = tabs.find((t) => t.id === activeTabId);
+                  if (activeTab) {
+                    activeTab.model.setValue(script.script);
+                    activeTab.name =
+                      script.title.slice(0, 20) +
+                      (script.title.length > 20 ? "..." : "");
+                    renderTabs();
+                    switchView("editor");
+                    showToast("Script loaded into editor!", "success");
+                  }
+                }
+              });
+
+            scriptsResultsContainer.appendChild(card);
+          });
+        }
+
+        function copyToClipboard(text) {
+          const textarea = document.createElement("textarea");
+          textarea.value = text;
+          document.body.appendChild(textarea);
+          textarea.select();
+          try {
+            document.execCommand("copy");
+            showCopyFeedback();
+          } catch (err) {
+            console.error("Fallback: Oops, unable to copy", err);
+          }
+          document.body.removeChild(textarea);
+        }
+
+        function showCopyFeedback() {
+          copyFeedbackEl.classList.remove("opacity-0");
+          setTimeout(() => {
+            copyFeedbackEl.classList.add("opacity-0");
+          }, 2000);
+        }
+
+        function setupAutoSearch() {
+          scriptSearchInput.addEventListener("input", (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+
+            searchTimeout = setTimeout(() => {
+              if (query === "") {
+                loadFeaturedScripts();
+              } else {
+                searchScripts(query);
+              }
+            }, 500);
+          });
+
+          scriptSearchInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              clearTimeout(searchTimeout);
+              const query = scriptSearchInput.value.trim();
+              if (query === "") {
+                loadFeaturedScripts();
+              } else {
+                searchScripts(query);
+              }
+            }
+          });
+        }
+
+        scriptSearchButton.addEventListener("click", searchScripts);
+
+        function getNextUntitledNumber() {
+          const untitledNumbers = tabs
+            .map((tab) => {
+              const match = tab.name.match(/^Untitled (\d+)$/);
+              return match ? parseInt(match[1], 10) : 0;
+            })
+            .sort((a, b) => a - b);
+          let nextNumber = 1;
+          for (const num of untitledNumbers) {
+            if (num === nextNumber) nextNumber++;
+            else break;
+          }
+          return nextNumber;
+        }
+        function addTab() {
+          const tabId = `tab-${Date.now()}`;
+          const newTab = {
+            id: tabId,
+            name: `Untitled ${getNextUntitledNumber()}`,
+            model: monaco.editor.createModel(welcomeMessage, "lua"),
+          };
+          tabs.push(newTab);
+          renderTabs();
+          switchTab(tabId);
+        }
+        function switchTab(tabId) {
+          if (activeTabId === tabId) return;
+          const tabData = tabs.find((t) => t.id === tabId);
+          if (!tabData) return;
+          activeTabId = tabId;
+          editor.setModel(tabData.model);
+          editor.focus();
+          renderTabs();
+        }
+        function closeTab(tabId, event) {
+          event.stopPropagation();
+          const tabElement = document.querySelector(`[data-tab-id="${tabId}"]`);
+          if (!tabElement) return;
+          tabElement.classList.add("tab-exit");
+          setTimeout(() => {
+            const tabIndex = tabs.findIndex((t) => t.id === tabId);
+            if (tabIndex > -1) {
+              tabs[tabIndex].model.dispose();
+              tabs.splice(tabIndex, 1);
+              if (activeTabId === tabId) {
+                activeTabId = null;
+                if (tabs.length > 0) {
+                  switchTab(tabs[Math.max(0, tabIndex - 1)].id);
+                } else {
+                  addTab();
+                }
+              } else {
+                renderTabs();
+              }
+            }
+          }, 150);
+        }
+        function renderTabs() {
+          tabsContainer.innerHTML = "";
+          tabs.forEach((tab) => {
+            const isActive = tab.id === activeTabId;
+            const tabElement = document.createElement("div");
+            tabElement.className = `flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-all duration-200 tab-enter ${isActive ? "bg-white/10 text-white" : "bg-gradient-to-b from-white/10 to-transparent border border-white/20 text-gray-400 hover:text-white"}`;
+            tabElement.dataset.tabId = tab.id;
+            tabElement.onclick = () => switchTab(tab.id);
+            tabElement.innerHTML = `<span class="pr-1">${tab.name}</span><button class="p-0.5 rounded-full transition-colors ${isActive ? "text-white hover:bg-white/20" : "text-gray-400 hover:bg-gray-600/50"}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>`;
+
+            tabElement.querySelector("button").onclick = (e) =>
+              closeTab(tab.id, e);
+
+            const tabNameSpan = tabElement.querySelector("span");
+            tabNameSpan.addEventListener("dblclick", (e) => {
+              e.stopPropagation();
+              tabElement.onclick = null;
+
+              const input = document.createElement("input");
+              input.type = "text";
+              input.value = tab.name;
+              input.className =
+                "bg-transparent text-white outline-none border-b border-blue-500 w-24";
+
+              tabNameSpan.replaceWith(input);
+              input.focus();
+              input.select();
+
+              const saveName = () => {
+                const newName = input.value.trim();
+                if (newName) {
+                  tab.name = newName;
+                }
+                renderTabs();
+              };
+
+              input.addEventListener("blur", saveName);
+              input.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                  saveName();
+                } else if (e.key === "Escape") {
+                  renderTabs();
+                }
+              });
+            });
+
+            tabsContainer.appendChild(tabElement);
+          });
+          attachSoundListeners();
+        }
+        addTabBtn.addEventListener("click", addTab);
+        clearBtn.addEventListener("click", () => {
+          if (editor) {
+            const model = editor.getModel();
+            if (model) {
+              model.setValue("");
+            }
+          }
+        });
+
+        function updateToggleVisuals(checkbox) {
+          const label = checkbox.nextElementSibling;
+          if (!label) return;
+          const dot = label.querySelector(".toggle-dot");
+          if (checkbox.checked) {
+            label.classList.add("bg-blue-500");
+            label.classList.remove("bg-white/20");
+            if (dot) dot.classList.add("translate-x-full");
+          } else {
+            label.classList.remove("bg-blue-500");
+            label.classList.add("bg-white/20");
+            if (dot) dot.classList.remove("translate-x-full");
+          }
+        }
+
+        function applyVibrancySetting(enabled) {
+          const body = document.body;
+          const mainContainer = document.querySelector(".w-full.min-h-screen");
+
+          if (enabled) {
+            body.style.background = "transparent";
+            if (mainContainer) {
+              mainContainer.classList.remove("bg-[#17181A]");
+              mainContainer.classList.add("bg-transparent");
+            }
+
+            if (window.electronAPI) {
+              window.electronAPI.setVibrancy(true);
+            }
+          } else {
+            body.style.background = "#17181A";
+            if (mainContainer) {
+              mainContainer.classList.remove("bg-transparent");
+              mainContainer.classList.add("bg-[#17181A]");
+            }
+
+            if (window.electronAPI) {
+              window.electronAPI.setVibrancy(false);
+            }
+          }
+        }
+
+        function initializeSettings() {
+          const settings = loadSettings();
+
+          uiSoundsEnabled = settings.uiSoundsEnabled;
+          editorTypingSoundsEnabled = settings.editorTypingSoundsEnabled;
+
+          const uiSoundsToggle = document.getElementById("uisounds-toggle");
+          const typingSoundsToggle = document.getElementById(
+            "typingsounds-toggle",
+          );
+          const vibrancyToggle = document.getElementById("vibrancy-toggle");
+          const minimapToggle = document.getElementById("minimap-toggle");
+          const lineNumbersToggle =
+            document.getElementById("linenumbers-toggle");
+
+          if (uiSoundsToggle) {
+            uiSoundsToggle.checked = settings.uiSoundsEnabled;
+          }
+          if (typingSoundsToggle) {
+            typingSoundsToggle.checked = settings.editorTypingSoundsEnabled;
+          }
+          if (vibrancyToggle) {
+            vibrancyToggle.checked = settings.vibrancyEnabled;
+            applyVibrancySetting(settings.vibrancyEnabled);
+          }
+          if (minimapToggle) {
+            minimapToggle.checked = settings.minimapEnabled;
+          }
+          if (lineNumbersToggle) {
+            lineNumbersToggle.checked = settings.lineNumbersEnabled;
+          }
+
+          document
+            .querySelectorAll(".toggle-checkbox")
+            .forEach((checkbox) => updateToggleVisuals(checkbox));
+
+          updateActiveView();
+        }
+        settingsWrapper.addEventListener("change", (e) => {
+          if (e.target.classList.contains("toggle-checkbox")) {
+            const checkbox = e.target;
+            updateToggleVisuals(checkbox);
+
+            if (checkbox.id === "uisounds-toggle") {
+              uiSoundsEnabled = checkbox.checked;
+              setSetting("uiSoundsEnabled", checkbox.checked);
+            } else if (checkbox.id === "typingsounds-toggle") {
+              editorTypingSoundsEnabled = checkbox.checked;
+              setSetting("editorTypingSoundsEnabled", checkbox.checked);
+            } else if (checkbox.id === "vibrancy-toggle") {
+              applyVibrancySetting(checkbox.checked);
+              setSetting("vibrancyEnabled", checkbox.checked);
+            } else if (editor && checkbox.id === "minimap-toggle") {
+              editor.updateOptions({ minimap: { enabled: checkbox.checked } });
+              setSetting("minimapEnabled", checkbox.checked);
+            } else if (editor && checkbox.id === "linenumbers-toggle") {
+              editor.updateOptions({
+                lineNumbers: checkbox.checked ? "on" : "off",
+              });
+              setSetting("lineNumbersEnabled", checkbox.checked);
+            }
+          }
+        });
+        attachSoundListeners();
+
+        function initKeyboardShortcuts() {
+          document.addEventListener("keydown", (e) => {
+            if (e.metaKey || e.key === "F5") {
+              switch (true) {
+                case e.metaKey && e.key === "t":
+                  e.preventDefault();
+                  addTab();
+                  showToast("New tab created", "info");
+                  break;
+
+                case e.metaKey && e.key === "w":
+                  e.preventDefault();
+                  if (tabs.length > 1 && activeTabId) {
+                    closeTab(activeTabId, { stopPropagation: () => {} });
+                    showToast("Tab closed", "info");
+                  }
+                  break;
+
+                case e.metaKey && e.key === "o":
+                  e.preventDefault();
+                  if (window.electronAPI) {
+                    document.getElementById("open-file-btn").click();
+                  }
+                  break;
+
+                case e.metaKey && e.key === "s":
+                  e.preventDefault();
+                  if (window.electronAPI) {
+                    document.getElementById("save-file-btn").click();
+                  }
+                  break;
+
+                case e.key === "F5":
+                  e.preventDefault();
+                  if (window.electronAPI) {
+                    document.getElementById("execute-btn").click();
+                  }
+                  break;
+
+                case e.metaKey && e.key === "1":
+                  e.preventDefault();
+                  switchView("editor");
+                  showToast("Switched to Editor", "info");
+                  break;
+
+                case e.metaKey && e.key === "2":
+                  e.preventDefault();
+                  switchView("scripthub");
+                  showToast("Switched to Script Hub", "info");
+                  break;
+
+                case e.metaKey && e.key === "3":
+                  e.preventDefault();
+                  switchView("settings");
+                  showToast("Switched to Settings", "info");
+                  break;
+
+                case e.metaKey && e.key === "4":
+                  e.preventDefault();
+                  switchView("credits");
+                  showToast("Switched to Credits", "info");
+                  break;
+              }
+            }
+          });
+        }
+
+        function showKeyboardShortcuts() {
+          const shortcuts = [
+            { keys: "Cmd + T", action: "New Tab" },
+            { keys: "Cmd + W", action: "Close Tab" },
+            { keys: "Cmd + O", action: "Open File" },
+            { keys: "Cmd + S", action: "Save File" },
+            { keys: "F5", action: "Execute Script" },
+            { keys: "Cmd + 1", action: "Switch to Editor" },
+            { keys: "Cmd + 2", action: "Switch to Script Hub" },
+            { keys: "Cmd + 3", action: "Switch to Settings" },
+            { keys: "Cmd + 4", action: "Switch to Credits" },
+          ];
+
+          const modal = document.getElementById("shortcuts-modal");
+          const shortcutsList = document.getElementById("shortcuts-list");
+
+          shortcutsList.innerHTML = shortcuts
+            .map(
+              (s) =>
+                `<tr><td class="px-3 py-2 text-blue-300 font-mono text-sm">${s.keys}</td><td class="px-3 py-2 text-gray-300">${s.action}</td></tr>`,
+            )
+            .join("");
+
+          modal.classList.remove("hidden");
+
+          const closeModal = () => {
+            modal.classList.add("hidden");
+            document.removeEventListener("keydown", handleKeydown);
+          };
+
+          const handleKeydown = (e) => {
+            if ((e.altKey && e.key === "F4") || e.key === "Escape") {
+              closeModal();
+            }
+          };
+
+          document.addEventListener("keydown", handleKeydown);
+          modal.addEventListener("click", (e) => {
+            if (e.target === modal) {
+              closeModal();
+            }
+          });
+
+          document
+            .getElementById("close-shortcuts-modal")
+            .addEventListener("click", closeModal);
+        }
+
+        initKeyboardShortcuts();
+
+        document.addEventListener("click", (e) => {
+          if (e.target.closest("#show-shortcuts-btn")) {
+            showKeyboardShortcuts();
+          }
+        });
+
+        function showToast(message, type = "info") {
+          const toastContainer = document.getElementById("toast-container");
+          const template = document.getElementById("toast-template");
+
+          if (!toastContainer || !template) {
+            console.error("Toast container or template not found");
+            return;
+          }
+
+          const toast = template.content.cloneNode(true).querySelector("div");
+
+          switch (type) {
+            case "success":
+              toast.classList.add("toast-success");
+              toast.querySelector(".toast-icon").innerHTML =
+                `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>`;
+              break;
+            case "error":
+              toast.classList.add("toast-error");
+              toast.querySelector(".toast-icon").innerHTML =
+                `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>`;
+              break;
+            case "warning":
+              toast.classList.add("toast-warning");
+              toast.querySelector(".toast-icon").innerHTML =
+                `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>`;
+              break;
+            default:
+              toast.classList.add("toast-info");
+              toast.querySelector(".toast-icon").innerHTML =
+                `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>`;
+          }
+
+          toast.querySelector(".toast-message").textContent = message;
+
+          toast.querySelector(".toast-close").addEventListener("click", () => {
+            toast.classList.add("translate-x-full", "opacity-0");
+            setTimeout(() => toast.remove(), 300);
+          });
+
+          toastContainer.appendChild(toast);
+
+          setTimeout(() => {
+            toast.classList.remove("translate-x-full", "opacity-0");
+          }, 100);
+
+          setTimeout(() => {
+            if (toast.parentNode) {
+              toast.classList.add("translate-x-full", "opacity-0");
+              setTimeout(() => {
+                if (toast.parentNode) {
+                  toast.remove();
+                }
+              }, 300);
+            }
+          }, 5000);
+        }
+
+        const showNotification = showToast;
+
+        if (window.electronAPI) {
+          const executeBtn = document.getElementById("execute-btn");
+          const openFileBtn = document.getElementById("open-file-btn");
+          const saveFileBtn = document.getElementById("save-file-btn");
+
+          executeBtn.addEventListener("click", async () => {
+            if (!editor) {
+              showNotification("Editor not initialized", "error");
+              return;
+            }
+
+            const scriptContent = editor.getValue();
+            if (!scriptContent.trim()) {
+              showNotification("No script content to execute", "warning");
+              return;
+            }
+
+            executeBtn.disabled = true;
+            executeBtn.innerHTML = `
+                        <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+                        Executing...
+                    `;
+
+            try {
+              const result =
+                await window.electronAPI.executeScript(scriptContent);
+
+              if (result.success) {
+                showNotification(result.message, "success");
+              } else {
+                showNotification(result.message, "error");
+                console.error("Script execution failed:", result.details);
+              }
+            } catch (error) {
+              showNotification(
+                "Failed to execute script: " + error.message,
+                "error",
+              );
+              console.error("Execution error:", error);
+            } finally {
+              executeBtn.disabled = false;
+              executeBtn.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-play-circle"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                            Execute
+                        `;
+            }
+          });
+
+          openFileBtn.addEventListener("click", async () => {
+            try {
+              const result = await window.electronAPI.openFileDialog();
+
+              if (result.success && !result.canceled) {
+                const activeTab = tabs.find((t) => t.id === activeTabId);
+                if (activeTab) {
+                  activeTab.name = result.fileName;
+                  activeTab.model.setValue(result.content);
+                  currentFilePath = result.filePath;
+                  renderTabs();
+                  showNotification(
+                    `File "${result.fileName}" opened successfully`,
+                    "success",
+                  );
+                }
+              } else if (result.message) {
+                showNotification(
+                  "Failed to open file: " + result.message,
+                  "error",
+                );
+              }
+            } catch (error) {
+              showNotification(
+                "Failed to open file: " + error.message,
+                "error",
+              );
+              console.error("File open error:", error);
+            }
+          });
+
+          saveFileBtn.addEventListener("click", async () => {
+            if (!editor) {
+              showNotification("Editor not initialized", "error");
+              return;
+            }
+
+            const content = editor.getValue();
+
+            try {
+              const result = await window.electronAPI.saveFileDialog(
+                content,
+                currentFilePath,
+              );
+
+              if (result.success && !result.canceled) {
+                const activeTab = tabs.find((t) => t.id === activeTabId);
+                if (activeTab) {
+                  activeTab.name = result.fileName;
+                  currentFilePath = result.filePath;
+                  renderTabs();
+                }
+                showNotification(result.message, "success");
+              } else if (result.message) {
+                showNotification(
+                  "Failed to save file: " + result.message,
+                  "error",
+                );
+              }
+            } catch (error) {
+              showNotification(
+                "Failed to save file: " + error.message,
+                "error",
+              );
+              console.error("File save error:", error);
+            }
+          });
+
+          window.electronAPI.onMenuNewTab(() => addTab());
+          window.electronAPI.onMenuOpenFile(() => openFileBtn.click());
+          window.electronAPI.onMenuSaveFile(() => saveFileBtn.click());
+          window.electronAPI.onMenuExecuteScript(() => executeBtn.click());
+
+          const closeBtn = document.getElementById("close-btn");
+          const minimizeBtn = document.getElementById("minimize-btn");
+          const maximizeBtn = document.getElementById("maximize-btn");
+
+          closeBtn.addEventListener("click", () => {
+            window.electronAPI.windowClose();
+          });
+
+          minimizeBtn.addEventListener("click", () => {
+            window.electronAPI.windowMinimize();
+          });
+
+          maximizeBtn.addEventListener("click", async () => {
+            window.electronAPI.windowMaximize();
+          });
+
+          const updateMaximizeButton = async () => {
+            const isMaximized = await window.electronAPI.windowIsMaximized();
+            maximizeBtn.title = isMaximized ? "Restore" : "Maximize";
+          };
+
+          window.addEventListener("resize", updateMaximizeButton);
+          updateMaximizeButton();
+        } else {
+          console.warn(
+            "Electron API not available. Some features may not work.",
+          );
+          showNotification(
+            "Running in browser mode - some features disabled",
+            "warning",
+          );
+        }
+      });
+    </script>
+  </body>
+</html>

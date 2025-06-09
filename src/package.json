@@ -1,0 +1,25 @@
+{
+  "name": "Seven",
+  "version": "2.0.0",
+  "description": "Seven - Code Editor with Script Execution",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pretty": "prettier --write \"./**/*.{js,json,css,html}\""
+  },
+  "author": "Seven",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "build": {
+    "appId": "com.seven",
+    "productName": "Seven",
+    "directories": {
+      "output": "dist"
+    }
+  }
+}
